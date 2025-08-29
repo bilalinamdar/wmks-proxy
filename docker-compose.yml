@@ -1,0 +1,40 @@
+version: "3.9"
+services:
+  webmks:
+    build: .
+    image: webmks-proxy:1.1
+    container_name: webmks-proxy
+    restart: unless-stopped
+    ports:
+      - "8081:8081"   # host:container
+
+    # ----- Environment (app already supports .env internally; shell env wins) -----
+    environment:
+      VCENTER_URL: ${VCENTER_URL}
+      VCENTER_USER: ${VCENTER_USER}
+      VCENTER_PASS: ${VCENTER_PASS}
+      VCENTER_LISTEN: ":8081"
+      VCENTER_SECURE_TLS: "false"  # set "true" to verify ESXi certs
+
+    # ===== Name resolution: pick ONE of the following =====
+
+    # A) Use corporate DNS (recommended; cross-platform)
+    # Provide your DNS server(s) that resolve vCenter + ESXi FQDNs:
+    # dns:
+    #   - 10.10.10.53
+    #   - 10.10.10.54
+
+    # B) Mount host's hosts file (Linux & macOS containers only; see Windows note below)
+    # volumes:
+    #   - /etc/hosts:/etc/hosts:ro
+
+    # C) Hard-code mappings (cross-platform; simplest on Windows)
+    # extra_hosts:
+    #   - "vc.example.local:10.10.10.5"
+    #   - "esx01.lab.local:10.10.20.11"
+    #   - "esx02.lab.local:10.10.20.12"
+
+    # Optional: live-edit UI without rebuild
+    # volumes:
+    #   - ./templates:/app/templates:ro
+    #   - ./static:/app/static:ro
