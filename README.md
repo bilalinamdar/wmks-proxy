@@ -10,7 +10,28 @@ Simple WebMKS proxy for vCenter guest VM console access in Go.
 > Version: **v1.1** • Repo: https://github.com/bilalinamdar/wmks-proxy
 
 ---
+## Quick Start
 
+### A) Standalone (binary)
+1) **Set env first** (export or create `.env` as above)
+2) Build & run:
+go mod download && go build -o webmks-proxy .
+./webmks-proxy -listen :8081
+Open: `http://<host>:8081/`
+
+### B) Docker
+
+1. **Set env first** (export with `-e` or create a Compose `.env` with `VCENTER_*`)
+2. Build & run (pick one):
+
+**Docker CLI**
+docker compose up -d
+
+> Put SSL/domain/SSO/rate limits in **Nginx/Caddy** in front of this app; allow WebSocket upgrade and long timeouts for `/ticket/*`.
+
+
+
+---
 ## Features
 - 🚀 Fast VM list (single vSphere round‑trip), newest first  
 - 🖥️ WebMKS console with **Ctrl+Alt+Delete** and **Fullscreen**  
@@ -70,25 +91,6 @@ VCENTER_SECURE_TLS=false
 
 ---
 
-## Quick Start
-
-### A) Standalone (binary)
-1) **Set env first** (export or create `.env` as above)
-2) Build & run:
-go mod download && go build -o webmks-proxy .
-./webmks-proxy -listen :8081
-Open: `http://<host>:8081/`
-
-### B) Docker
-
-1. **Set env first** (export with `-e` or create a Compose `.env` with `VCENTER_*`)
-2. Build & run (pick one):
-
-**Docker CLI**
-docker compose up -d
-
-> Put SSL/domain/SSO/rate limits in **Nginx/Caddy** in front of this app; allow WebSocket upgrade and long timeouts for `/ticket/*`.
-
 ---
 
 ## Optional edge proxy (SSL/domain)
@@ -109,8 +111,6 @@ location / {
   proxy_pass http://127.0.0.1:8081;
 }
 ```
-
----
 
 ## Troubleshooting
 
