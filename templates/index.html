@@ -1,0 +1,133 @@
+<!doctype html>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8">
+  <title>Select a VM</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    :root { color-scheme: light dark; }
+    body{margin:24px;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif}
+    h1{margin:0 0 10px}
+    .sub{color:#888;margin-bottom:14px}
+    .row{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px}
+    input{padding:8px;min-width:300px}
+    button{padding:8px 12px;border:0;border-radius:8px;background:#2b6cb0;color:#fff;cursor:pointer}
+    button.secondary{background:#444}
+    button:disabled{opacity:.6;cursor:default}
+    #results{margin-top:14px}
+    #results a{display:block;padding:6px 0;text-decoration:none;border-bottom:1px solid #3333}
+    #results a:hover{text-decoration:underline}
+    /* Multi-column list (no inner scroll) */
+    #allList{margin-top:14px;display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:8px 16px}
+    #allList a{display:block;padding:8px 12px;border:1px solid #2a2a2a;border-radius:10px;text-decoration:none}
+    #allList a:hover{border-color:#3b82f6}
+    .muted{color:#666;font-size:12px}
+    .count{margin-left:8px;font-size:12px;color:#666}
+    .vc{font-weight:600}
+  </style>
+</head>
+<body>
+  <h1>Select a VM</h1>
+  <div class="sub">Connected to vCenter: <span class="vc">{{.VCenterHost}}</span></div>
+
+  <div class="row">
+    <input id="q" autocomplete="off" placeholder="Type VM name (case-insensitive)" autofocus>
+    <button id="go" disabled>Submit</button>
+    <button id="clear" class="secondary" type="button">Clear</button>
+    <button id="toggle" class="secondary" type="button">Hide list</button>
+    <span id="cnt" class="count"></span>
+  </div>
+  <div class="muted">Tip: Press <kbd>Enter</kbd> to submit when a VM is selected. Sorted by most recent.</div>
+
+  <div id="results"></div>
+  <div id="allList"></div>
+
+  <script>
+    // Injected once by Go as array of {name, created, boot}
+    const VMS = {{.VMsJSON}};
+
+    const q = document.getElementById('q');
+    const go = document.getElementById('go');
+    const clearBtn = document.getElementById('clear');
+    const toggleBtn = document.getElementById('toggle');
+    const results = document.getElementById('results');
+    const allList = document.getElementById('allList');
+    const cnt = document.getElementById('cnt');
+
+    cnt.textContent = `${VMS.length} total`;
+
+    const idx = VMS.map(v => ({ name: v.name, lc: v.name.toLowerCase() }));
+
+    function linkFor(name) {
+      const a = document.createElement('a');
+      a.href = '/console/' + encodeURIComponent(name);
+      a.target = '_blank';  // open in new tab
+      a.rel = 'noopener';
+      a.textContent = name;
+      return a;
+    }
+
+    function renderList(list, container) {
+      container.innerHTML = '';
+      if (!list.length) { container.textContent = 'No matches.'; return; }
+      const frag = document.createDocumentFragment();
+      for (const it of list) frag.appendChild(linkFor(it.name ?? it));
+      container.appendChild(frag);
+    }
+
+    function buildAllOnce() {
+      if (allList.dataset.built === '1') return;
+      // Already sorted by "recent first" from server
+      renderList(VMS, allList);
+      allList.dataset.built = '1';
+    }
+
+    function search() {
+      const term = q.value.trim().toLowerCase();
+      if (!term) {
+        results.innerHTML = '';
+        go.disabled = true;
+        return;
+      }
+      const exact = idx.find(v => v.lc === term);
+      go.disabled = !exact;
+      if (exact) {
+        const partials = idx.filter(v => v.lc.includes(term) && v !== exact).slice(0, 10);
+        renderList([{name: exact.name}, ...partials], results);
+      } else {
+        const partials = idx.filter(v => v.lc.includes(term)).slice(0, 25);
+        renderList(partials, results);
+      }
+    }
+
+    function submit() {
+      const term = q.value.trim().toLowerCase();
+      if (!term) return;
+      const exact = idx.find(v => v.lc === term);
+      if (exact) {
+        window.open('/console/' + encodeURIComponent(exact.name), '_blank', 'noopener');
+      } else {
+        const partials = idx.filter(v => v.lc.includes(term));
+        if (partials.length === 1) {
+          window.open('/console/' + encodeURIComponent(partials[0].name), '_blank', 'noopener');
+        }
+      }
+    }
+
+    // Events
+    q.addEventListener('input', search);
+    q.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); submit(); } });
+    go.addEventListener('click', submit);
+    clearBtn.addEventListener('click', () => { q.value = ''; results.innerHTML = ''; go.disabled = true; q.focus(); });
+    toggleBtn.addEventListener('click', () => {
+      const visible = allList.style.display !== 'none';
+      if (visible) { allList.style.display = 'none'; toggleBtn.textContent = 'Show list'; }
+      else { buildAllOnce(); allList.style.display = ''; toggleBtn.textContent = 'Hide list'; }
+    });
+
+    // Initial: show list
+    buildAllOnce();
+  </script>
+</body>
+</html>
+

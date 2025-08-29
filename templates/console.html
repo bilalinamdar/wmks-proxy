@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en-US">
+  <head>
+    <meta charset="UTF-8">
+    <title>{{.Name}} - Console Proxy</title>
+    <!-- Load order required by wmks -->
+    <script src="/static/jquery-3.6.0.min.js"></script>
+    <script src="/static/jquery-ui.min.js"></script>
+    <script src="/static/wmks.min.js"></script>
+    <style>
+      :root { --bar-h: 48px; }
+      html, body { height:100%; margin:0; background:#000; font:13px system-ui,-apple-system,Segoe UI,Roboto,sans-serif; color:#eaeaea; }
+
+      /* Fixed top bar that DOES NOT overlap the console */
+      .topbar{
+        position:fixed; top:0; left:0; right:0; height:var(--bar-h);
+        display:flex; align-items:center; gap:10px; padding:8px 10px;
+        background:#111a; backdrop-filter:saturate(120%) blur(3px);
+        border-bottom:1px solid #0008; z-index:10;
+      }
+      .topbar .spacer{flex:1}
+      .pill{display:inline-flex; align-items:center; gap:6px; padding:4px 8px;
+        background:#222c; border:1px solid #ffffff14; border-radius:8px; white-space:nowrap}
+      .btn{padding:6px 10px; border:0; border-radius:8px; background:#2b6cb0; color:#fff; cursor:pointer}
+      .btn[disabled]{opacity:.6; cursor:default}
+      .link{color:#fff; text-decoration:none; background:#2b6cb0; padding:6px 10px; border-radius:8px}
+
+      /* Console fills everything BELOW the bar */
+      #wmksContainer{
+        position:fixed; left:0; right:0; bottom:0; top:var(--bar-h);
+        width:100%; height:calc(100% - var(--bar-h));
+        /* exactly like your original: WMKS controls its own sizing */
+      }
+    </style>
+  </head>
+  <body>
+    <div class="topbar">
+      <span class="pill">Connected as: <b>{{.Name}}</b></span>
+      <span class="pill">vCenter: <b>{{.VC}}</b></span>
+      <span class="pill">ESXi: <b>{{.ESXi}}</b></span>
+      <span class="pill" title="Ticket">{{.Ticket}}</span>
+      <span class="spacer"></span>
+      <button id="fsBtn" class="btn" title="Toggle fullscreen">Fullscreen</button>
+      <button id="cadBtn" class="btn" title="Send Ctrl+Alt+Delete" disabled>Ctrl + Alt + Delete</button>
+      <a class="link" href="/" target="_blank" rel="noopener">VM list</a>
+    </div>
+
+    <!-- Fullscreen console area BELOW the bar -->
+    <div id="wmksContainer"></div>
+
+    <script>
+      (function(){
+        const cadBtn = document.getElementById('cadBtn');
+        const fsBtn  = document.getElementById('fsBtn');
+
+        var wmks = WMKS.createWMKS("wmksContainer", {})
+          .register(WMKS.CONST.Events.CONNECTION_STATE_CHANGE, function(event, data){
+            cadBtn.disabled = (data.state !== WMKS.CONST.ConnectionState.CONNECTED);
+          })
+          .register(WMKS.CONST.Events.ERROR, function(_e, err){ console.error("WMKS error:", err); });
+
+        var wsProtocol = (location.protocol === "https:") ? "wss:" : "ws:";
+        wmks.connect(wsProtocol + "//" + location.host + "/ticket/{{.Ticket}}");
+
+        cadBtn.addEventListener('click', function(){
+          try {
+            if (typeof wmks.sendCAD === 'function') wmks.sendCAD();
+            else if (wmks.keyboard && typeof wmks.keyboard.sendCAD === 'function') wmks.keyboard.sendCAD();
+            else alert("This wmks.min.js build doesn't expose sendCAD().");
+          } catch(e){ console.error("sendCAD failed:", e); }
+        });
+
+        fsBtn.addEventListener('click', function(){
+          if (!document.fullscreenElement) document.documentElement.requestFullscreen().catch(()=>{});
+          else document.exitFullscreen().catch(()=>{});
+        });
+      })();
+    </script>
+  </body>
+</html>
+
